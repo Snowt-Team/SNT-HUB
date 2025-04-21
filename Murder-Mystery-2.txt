@@ -91,6 +91,7 @@ local Tabs = {
     CharacterTab = Window:Tab({ Title = "Character", Icon = "file-cog" }),
     TeleportTab = Window:Tab({ Title = "Teleport", Icon = "user" }),
     EspTab = Window:Tab({ Title = "ESP", Icon = "eye" }),
+    AimbotTab = Window:Tab({ Title = "Aimbot", Icon = "axe" }),
     Bee = Window:Divider(),
     MurderTab = Window:Tab({ Title = "Murder", Icon = "knife"}),
     SheriffTab = Window:Tab({ Title = "Sheriff", Icon = "gun"}),
@@ -103,9 +104,7 @@ local Tabs = {
     CreateThemeTab = Window:Tab({ Title = "Create Theme", Icon = "palette", Desc = "Design and apply custom themes." }),
 }
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
+--[[ НАСТРОЙКИ ПЕРСОНАЖА ]]--
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -181,7 +180,7 @@ Tabs.CharacterTab:Toggle({
     end
 })
 
-eleportDropdown:Set("Values", updateTeleportPlayers())--[[ ESP СИСТЕМА (БЕЗ РОЛЕЙ) ]]--
+--[[ СИСТЕМА ESP ]]--
 local camera = workspace.CurrentCamera
 local playerHighlights = {}
 local textLabels = {}
@@ -190,13 +189,13 @@ local ESPSettings = {
     Names = false,
     Distance = false,
     Highlight = false,
-    Color = Color3.fromRGB(255, 0, 0),          -- Основной цвет подсветки
+    Color = Color3.fromRGB(255, 0, 0),
     Transparency = 0.5,
     TextColor = Color3.new(1, 1, 1),
     TextSize = 18
 }
 
--- Основные тогглы ESP
+-- Настройки ESP
 Tabs.EspTab:Toggle({
     Title = "Name ESP",
     Default = false,
@@ -221,52 +220,47 @@ Tabs.EspTab:Toggle({
     end
 })
 
--- Настройки ESP
 Tabs.EspTab:Section({Title = "Settings ESP"})
 
--- Цвет подсветки
 Tabs.EspTab:Colorpicker({
-    Title = "Highlight Color",
+    Title = "Highlight color",
     Default = ESPSettings.Color,
     Callback = function(color)
         ESPSettings.Color = color
     end
 })
 
--- Прозрачность
-Tabs.EspTab:Slider({
-    Title = "Highlight Transparency",
-    Value = {Min = 0, Max = 1, Default = 0.5},
+Tabs.EspTab:Input({
+    Title = "Highlight transparency",
+    Default = 0.5,
     Callback = function(value)
         ESPSettings.Transparency = value
     end
 })
 
--- Цвет текста
 Tabs.EspTab:Colorpicker({
-    Title = "Text Color",
+    Title = "Esp text color",
     Default = ESPSettings.TextColor,
     Callback = function(color)
         ESPSettings.TextColor = color
     end
 })
 
--- Размер текста
 Tabs.EspTab:Slider({
-    Title = "Text Size",
+    Title = "Esp text size",
     Value = {Min = 12, Max = 24, Default = 18},
     Callback = function(value)
         ESPSettings.TextSize = value
     end
 })
 
--- Функция обновления ESP
+-- Основная логика ESP
 local function updateESP()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local character = player.Character
-
-            -- Подсветка
+            
+            -- Обработка подсветки
             if ESPSettings.Highlight and character then
                 if not playerHighlights[player] then
                     playerHighlights[player] = Instance.new("Highlight")
@@ -281,7 +275,7 @@ local function updateESP()
                 end
             end
 
-            -- Текстовый ESP
+            -- Обработка текста
             if (ESPSettings.Names or ESPSettings.Distance) and character then
                 if not textLabels[player] then
                     textLabels[player] = Drawing.new("Text")
@@ -318,36 +312,46 @@ local function updateESP()
     end
 end
 
--- Запуск ESP
+-- Автоматическое обновление
+RunService.Heartbeat:Connect(updateCharacter)
 RunService.RenderStepped:Connect(updateESP)
 
---[[ TELEPORT СИСТЕМА ]]--
-Tabs.TeleportTab:Section({Title = "Player Teleport"}) -- Секция для телепорта
-
+-- Очистка при выходе
+Players.PlayerRemoving:Connect(function(player)
+    if playerHighlights[player] then
+        playerHighlights[player]:Destroy()
+        playerHighlights[player] = nil
+    end
+    if textLabels[player] then
+        textLabels[player]:Remove()
+        textLabels[player] = nil
+    end
+end)
+-- [[ TELEPORT СИСТЕМА ]] --
 local teleportTarget = nil
 
 -- Функция обновления списка игроков
 local function updateTeleportPlayers()
-    local playersList = {"None"} -- Добавляем "None" для сброса выбора
+    local playersList = {}
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then -- Проверяем наличие персонажа
+        if player ~= LocalPlayer then
             table.insert(playersList, player.Name)
         end
     end
     return playersList
 end
 
--- Дропдаун для выбора игрока
+-- Создаем дропдаун для выбора игроков
 local teleportDropdown = Tabs.TeleportTab:Dropdown({
-    Title = "Select Player",
+    Title = "Players to teleport",
     Values = updateTeleportPlayers(),
-    Value = "None", -- По умолчанию "None"
+    Value = "Select Player",
     Callback = function(selected)
-        teleportTarget = (selected ~= "None") and Players:FindFirstChild(selected) or nil
+        teleportTarget = Players:FindFirstChild(selected)
     end
 })
 
--- Телепортация к игроку
+-- Функция телепортации
 local function teleportToPlayer()
     if teleportTarget and teleportTarget.Character then
         local targetRoot = teleportTarget.Character:FindFirstChild("HumanoidRootPart")
@@ -356,16 +360,16 @@ local function teleportToPlayer()
         if targetRoot and localRoot then
             localRoot.CFrame = targetRoot.CFrame
             WindUI:Notify({
-                Title = "Teleport",
-                Content = "Teleported to " .. teleportTarget.Name,
+                Title = "Телепортация",
+                Content = "Успешно телепортирован к "..teleportTarget.Name,
                 Icon = "check-circle",
                 Duration = 3
             })
         end
     else
         WindUI:Notify({
-            Title = "Error",
-            Content = "Target not found or unavailable",
+            Title = "Ошибка",
+            Content = "Цель не найдена или недоступна",
             Icon = "x-circle",
             Duration = 3
         })
@@ -374,13 +378,13 @@ end
 
 -- Кнопка телепортации
 Tabs.TeleportTab:Button({
-    Title = "Teleport to Player",
+    Title = "Teleport to player",
     Callback = teleportToPlayer
 })
 
 -- Кнопка обновления списка
 Tabs.TeleportTab:Button({
-    Title = "🔄 Refresh Player List",
+    Title = "Update players list",
     Callback = function()
         teleportDropdown:Set("Values", updateTeleportPlayers())
     end
@@ -803,8 +807,8 @@ Tabs.WindowTab:Button({
                 WindUI:Notify({
                     Title = "File Loaded",
                     Content = "Loaded data: " .. HttpService:JSONEncode(data),
-                    Duration = 5,
-                            })
+                Duration = 5,
+                })
                 if data.Transparent then 
                     Window:ToggleTransparency(data.Transparent)
                     ToggleTransparency:SetValue(data.Transparent)
