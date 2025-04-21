@@ -95,6 +95,7 @@ local Tabs = {
     MurderTab = Window:Tab({ Title = "Murder", Icon = "knife"}),
     SheriffTab = Window:Tab({ Title = "Sheriff", Icon = "gun"}),
     ServerTab = Window:Tab({ Title = "Server", Icon = "atom", Locked = true }),
+    beed = Window:Divider()
     SettingsTab = Window:Tab({ Title = "Settings", Icon = "code" }),
     ChangelogsTab = Window:Tab({ Title = "Changelogs", Icon = "info"}),
     b = Window:Divider(),
@@ -180,7 +181,7 @@ Tabs.CharacterTab:Toggle({
     end
 })
 
---[[ СИСТЕМА ESP ]]--
+eleportDropdown:Set("Values", updateTeleportPlayers())--[[ ESP СИСТЕМА (БЕЗ РОЛЕЙ) ]]--
 local camera = workspace.CurrentCamera
 local playerHighlights = {}
 local textLabels = {}
@@ -189,11 +190,7 @@ local ESPSettings = {
     Names = false,
     Distance = false,
     Highlight = false,
-    Murderer = false,
-    Sheriff = false,
     Color = Color3.fromRGB(255, 0, 0),          -- Основной цвет подсветки
-    HighlightColor = Color3.fromRGB(255, 255, 0), -- Цвет общего Highlight ESP
-    SheriffColor = Color3.fromRGB(0, 0, 255),     -- Цвет шерифа
     Transparency = 0.5,
     TextColor = Color3.new(1, 1, 1),
     TextSize = 18
@@ -224,62 +221,28 @@ Tabs.EspTab:Toggle({
     end
 })
 
--- Секция для ролей
-Tabs.EspTab:Section({Title = "Role ESP"})
-
-Tabs.EspTab:Toggle({
-    Title = "ESP Murderer",
-    Default = false,
-    Callback = function(state) 
-        ESPSettings.Murderer = state
-    end
-})
-
-Tabs.EspTab:Toggle({
-    Title = "ESP Sheriff",
-    Default = false,
-    Callback = function(state) 
-        ESPSettings.Sheriff = state
-    end
-})
-
 -- Настройки ESP
 Tabs.EspTab:Section({Title = "Settings ESP"})
 
--- Цвета для разных режимов
+-- Цвет подсветки
 Tabs.EspTab:Colorpicker({
-    Title = "General Highlight Color",
-    Default = ESPSettings.HighlightColor,
-    Callback = function(color)
-        ESPSettings.HighlightColor = color
-    end
-})
-
-Tabs.EspTab:Colorpicker({
-    Title = "Murderer Color",
+    Title = "Highlight Color",
     Default = ESPSettings.Color,
     Callback = function(color)
         ESPSettings.Color = color
     end
 })
 
-Tabs.EspTab:Colorpicker({
-    Title = "Sheriff Color",
-    Default = ESPSettings.SheriffColor,
-    Callback = function(color)
-        ESPSettings.SheriffColor = color
-    end
-})
-
--- Общие настройки
-Tabs.EspTab:Input({
+-- Прозрачность
+Tabs.EspTab:Slider({
     Title = "Highlight Transparency",
-    Default = 0.5,
+    Value = {Min = 0, Max = 1, Default = 0.5},
     Callback = function(value)
-        ESPSettings.Transparency = tonumber(value) or 0.5
+        ESPSettings.Transparency = value
     end
 })
 
+-- Цвет текста
 Tabs.EspTab:Colorpicker({
     Title = "Text Color",
     Default = ESPSettings.TextColor,
@@ -288,6 +251,7 @@ Tabs.EspTab:Colorpicker({
     end
 })
 
+-- Размер текста
 Tabs.EspTab:Slider({
     Title = "Text Size",
     Value = {Min = 12, Max = 24, Default = 18},
@@ -296,36 +260,19 @@ Tabs.EspTab:Slider({
     end
 })
 
--- Обновлённая функция ESP
+-- Функция обновления ESP
 local function updateESP()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local character = player.Character
-            local role = roles[player] and roles[player].Role
-            
-            -- Определение цвета подсветки
-            local highlightColor = ESPSettings.HighlightColor -- По умолчанию общий цвет
-            
-            if role == "Murderer" and ESPSettings.Murderer then
-                highlightColor = ESPSettings.Color
-            elseif role == "Sheriff" and ESPSettings.Sheriff then
-                highlightColor = ESPSettings.SheriffColor
-            end
-            
-            -- Определение видимости
-            local showHighlight = ESPSettings.Highlight and (
-                (not ESPSettings.Murderer and not ESPSettings.Sheriff) or -- Общий режим
-                (role == "Murderer" and ESPSettings.Murderer) or
-                (role == "Sheriff" and ESPSettings.Sheriff)
-            )
 
             -- Подсветка
-            if showHighlight and character then
+            if ESPSettings.Highlight and character then
                 if not playerHighlights[player] then
                     playerHighlights[player] = Instance.new("Highlight")
                     playerHighlights[player].Parent = character
                 end
-                playerHighlights[player].FillColor = highlightColor
+                playerHighlights[player].FillColor = ESPSettings.Color
                 playerHighlights[player].FillTransparency = ESPSettings.Transparency
             else
                 if playerHighlights[player] then
@@ -334,7 +281,7 @@ local function updateESP()
                 end
             end
 
-            -- Текстовый ESP (остаётся без изменений)
+            -- Текстовый ESP
             if (ESPSettings.Names or ESPSettings.Distance) and character then
                 if not textLabels[player] then
                     textLabels[player] = Drawing.new("Text")
@@ -371,42 +318,36 @@ local function updateESP()
     end
 end
 
--- Инициализация системы ролей
-local function UpdateRoles()
-    roles = ReplicatedStorage:FindFirstChild("GetPlayerData", true):InvokeServer()
-end
-
--- Автоматическое обновление ролей
-game:GetService("ReplicatedStorage").GameData.RoleChanged:Connect(UpdateRoles)
-UpdateRoles()
-
 -- Запуск ESP
 RunService.RenderStepped:Connect(updateESP)
--- [[ TELEPORT СИСТЕМА ]] --
+
+--[[ TELEPORT СИСТЕМА ]]--
+Tabs.TeleportTab:Section({Title = "Player Teleport"}) -- Секция для телепорта
+
 local teleportTarget = nil
 
 -- Функция обновления списка игроков
 local function updateTeleportPlayers()
-    local playersList = {}
+    local playersList = {"None"} -- Добавляем "None" для сброса выбора
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
+        if player ~= LocalPlayer and player.Character then -- Проверяем наличие персонажа
             table.insert(playersList, player.Name)
         end
     end
     return playersList
 end
 
--- Создаем дропдаун для выбора игроков
+-- Дропдаун для выбора игрока
 local teleportDropdown = Tabs.TeleportTab:Dropdown({
-    Title = "Players to teleport",
+    Title = "Select Player",
     Values = updateTeleportPlayers(),
-    Value = "Select Player",
+    Value = "None", -- По умолчанию "None"
     Callback = function(selected)
-        teleportTarget = Players:FindFirstChild(selected)
+        teleportTarget = (selected ~= "None") and Players:FindFirstChild(selected) or nil
     end
 })
 
--- Функция телепортации
+-- Телепортация к игроку
 local function teleportToPlayer()
     if teleportTarget and teleportTarget.Character then
         local targetRoot = teleportTarget.Character:FindFirstChild("HumanoidRootPart")
@@ -415,16 +356,16 @@ local function teleportToPlayer()
         if targetRoot and localRoot then
             localRoot.CFrame = targetRoot.CFrame
             WindUI:Notify({
-                Title = "Телепортация",
-                Content = "Успешно телепортирован к "..teleportTarget.Name,
+                Title = "Teleport",
+                Content = "Teleported to " .. teleportTarget.Name,
                 Icon = "check-circle",
                 Duration = 3
             })
         end
     else
         WindUI:Notify({
-            Title = "Ошибка",
-            Content = "Цель не найдена или недоступна",
+            Title = "Error",
+            Content = "Target not found or unavailable",
             Icon = "x-circle",
             Duration = 3
         })
@@ -433,13 +374,13 @@ end
 
 -- Кнопка телепортации
 Tabs.TeleportTab:Button({
-    Title = "Teleport to player",
+    Title = "Teleport to Player",
     Callback = teleportToPlayer
 })
 
 -- Кнопка обновления списка
 Tabs.TeleportTab:Button({
-    Title = "Update players list",
+    Title = "🔄 Refresh Player List",
     Callback = function()
         teleportDropdown:Set("Values", updateTeleportPlayers())
     end
@@ -452,6 +393,7 @@ end)
 
 Players.PlayerRemoving:Connect(function()
     teleportDropdown:Set("Values", updateTeleportPlayers())
+end)
 end)
 
 
