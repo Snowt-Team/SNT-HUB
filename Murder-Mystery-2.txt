@@ -95,7 +95,7 @@ local Tabs = {
     MurderTab = Window:Tab({ Title = "Murder", Icon = "knife"}),
     SheriffTab = Window:Tab({ Title = "Sheriff", Icon = "gun"}),
     ServerTab = Window:Tab({ Title = "Server", Icon = "atom", Locked = true }),
-    beed = Window:Divider()
+    beed = Window:Divider(),
     SettingsTab = Window:Tab({ Title = "Settings", Icon = "code" }),
     ChangelogsTab = Window:Tab({ Title = "Changelogs", Icon = "info"}),
     b = Window:Divider(),
