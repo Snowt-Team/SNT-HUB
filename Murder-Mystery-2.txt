@@ -394,7 +394,6 @@ end)
 Players.PlayerRemoving:Connect(function()
     teleportDropdown:Set("Values", updateTeleportPlayers())
 end)
-end)
 
 
 --[[ ОБНОВЛЕННАЯ СИСТЕМА АИМБОТА ]]--
