@@ -1,7 +1,5 @@
 local WindUI = loadstring(game:HttpGet("https://tree-hub.vercel.app/api/UI/WindUI"))()
 
-local keys = {"Free_key10303bcb", "Free_key10303bcd", "Free_key10304bcb", "Testzxs"}
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -69,7 +67,7 @@ local Window = WindUI:CreateWindow({
     UserEnabled = true,
     HasOutline = true,
     KeySystem = {
-        Key = {keys},
+        Key = {"test"},
         Note = "Введите ключ.",
         URL = "t.me/supreme_scripts",
         SaveKey = false,
