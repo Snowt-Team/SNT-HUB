@@ -63,12 +63,6 @@ local Window = WindUI:CreateWindow({
     SideBarWidth = 200,
     UserEnabled = true,
     HasOutline = true,
-    KeySystem = {
-        Key = { "SnowTHasRelasedScriptWithMirroz!" },
-        Note = "Введите ключ:",
-        URL = "https://rkns.link/u13so",
-        SaveKey = false,
-    },
 })
 
 Window:EditOpenButton({
