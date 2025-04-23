@@ -65,7 +65,7 @@ local Window = WindUI:CreateWindow({
     HasOutline = true,
     KeySystem = {
         Key = { "SnowTHasRelasedScriptWithMirroz!" },
-        Note = "Введите ключ.",
+        Note = "Введите ключ:",
         URL = "",
         SaveKey = false,
     },
@@ -74,7 +74,7 @@ local Window = WindUI:CreateWindow({
 Window:EditOpenButton({
     Title = "Открыть UI",
     Icon = "monitor",
-    CornerRadius = UDim.new(0, 6),
+    CornerRadius = UDim.new(0, 4),
     StrokeThickness = 2,
     Color = ColorSequence.new(
         Color3.fromHex("1E213D"),
@@ -706,17 +706,28 @@ Tabs.SocialsTab:Paragraph({
     Title = "SnowT",
     Desc = "Join to my socials for know more information!",
     Image = "snowflake",
-    Color = "Blue",
-    Buttons = { Title = "TG", Callback = function() setclipboard("t.me/supreme_scripts") end }
+    Color = "Blue"
+})
+
+Tabs.SocialsTab:Button({
+    Title = "SnowT Channel",
+    Callback = function()
+        setClipboard("t.me/supreme_scripts")
+    end
 })
 
 Tabs.SocialsTab:Paragraph({
-    Title = "Mirroz",
+    Title = "Mirrozz",
     Desc = "Join to socials my friend for get more scripts!",
-    Image = "tree",
-    Color = "Green",
-    Buttons = { Title = "TG", Callback = function() setclipboard("t.me/mirrozzscript")
-        end }
+    Image = "eye",
+    Color = "Green"
+})
+
+Tabs.SocialsTab:Tabs.SocialsTab:Button({
+    Title = "Mirrozz Channel",
+    Callback = function()
+        setClipboard("t.me/mirrozzscript")
+    end
 })
 
 -- [[ Changelogs ]] --
