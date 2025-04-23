@@ -723,7 +723,7 @@ Tabs.SocialsTab:Paragraph({
     Color = "Green"
 })
 
-Tabs.SocialsTab:Tabs.SocialsTab:Button({
+Tabs.SocialsTab:Button({
     Title = "Mirrozz Channel",
     Callback = function()
         setClipboard("t.me/mirrozzscript")
