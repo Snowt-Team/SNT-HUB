@@ -1,0 +1,1036 @@
+local WindUI = loadstring(game:HttpGet("https://tree-hub.vercel.app/api/UI/WindUI"))()
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+function gradient(text, startColor, endColor)
+    local result = ""
+    local length = #text
+
+    for i = 1, length do
+        local t = (i - 1) / math.max(length - 1, 1)
+        local r = math.floor((startColor.R + (endColor.R - startColor.R) * t) * 255)
+        local g = math.floor((startColor.G + (endColor.G - startColor.G) * t) * 255)
+        local b = math.floor((startColor.B + (endColor.B - startColor.B) * t) * 255)
+
+        local char = text:sub(i, i)
+        result = result .. "<font color=\"rgb(" .. r ..", " .. g .. ", " .. b .. ")\">" .. char .. "</font>"
+    end
+
+    return result
+end
+
+local Confirmed = false
+
+WindUI:Popup({
+    Title = "Hi!",
+    Icon = "info",
+    Content = "This script made by " .. gradient("SnowT", Color3.fromHex("#00FF87"), Color3.fromHex("#60EFFF")),
+    Buttons = {
+        {
+            Title = "Cancel",
+            --Icon = "",
+            Callback = function() end,
+            Variant = "Tertiary", -- Primary, Secondary, Tertiary
+        },
+        {
+            Title = "Continue",
+            Icon = "arrow-right",
+            Callback = function() Confirmed = true end,
+            Variant = "Primary", -- Primary, Secondary, Tertiary
+        }
+    }
+})
+
+repeat task.wait() until Confirmed
+
+WindUI:Notify({
+    Title = "SNOWT&&MIRROZ HUB | UNIVERSAL",
+    Content = "Скрипт успешно загружен!",
+    Icon = "check-circle",
+    Duration = 3,
+})
+
+
+local Window = WindUI:CreateWindow({
+    Title = "SNOWT&&MIRROZ HUB | UNIVERSAL",
+    Icon = "infinity",
+    Author = "SnOwT",
+    Folder = "WindUI",
+    Size = UDim2.fromOffset(360, 330),
+    Transparent = true,
+    Theme = "Dark",
+    SideBarWidth = 200,
+    UserEnabled = true,
+    HasOutline = true,
+    KeySystem = {
+        Key = { "SnowTHasRelasedScriptWithMirroz!" },
+        Note = "Введите ключ.",
+        URL = "",
+        SaveKey = false,
+    },
+})
+
+Window:EditOpenButton({
+    Title = "Открыть UI",
+    Icon = "monitor",
+    CornerRadius = UDim.new(0, 6),
+    StrokeThickness = 2,
+    Color = ColorSequence.new(
+        Color3.fromHex("1E213D"),
+        Color3.fromHex("1F75FE")
+    ),
+    Draggable = true,
+})
+
+local Tabs = {
+    CharacterTab = Window:Tab({ Title = "Character", Icon = "file-cog" }),
+    TeleportTab = Window:Tab({ Title = "Teleport", Icon = "user" }),
+    EspTab = Window:Tab({ Title = "ESP", Icon = "eye" }),
+    AimbotTab = Window:Tab({ Title = "Aimbot", Icon = "axe" }),
+    FlyTab = Window:Tab({ Title = "Fly", Icon = "rocket" }),
+    be = Window:Divider(),
+    ServerTab = Window:Tab({ Title = "Server", Icon = "atom"}),
+    SettingsTab = Window:Tab({ Title = "Settings", Icon = "code" }),
+    ChangelogsTab = Window:Tab({ Title = "Changelogs", Icon = "info", }),
+    SocialsTab = Window:Tab({ Title = "Socials", Icon = "star"}),
+    b = Window:Divider(),
+    WindowTab = Window:Tab({ Title = "Window and File Configuration", Icon = "settings", Desc = "Manage window settings and file configurations." }),
+    CreateThemeTab = Window:Tab({ Title = "Create Theme", Icon = "palette", Desc = "Design and apply custom themes." }),
+}
+
+--[[ НАСТРОЙКИ ПЕРСОНАЖА ]]--
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local CharacterSettings = {
+    WalkSpeed = {Value = 16, Default = 16, Locked = false},
+    JumpPower = {Value = 50, Default = 50, Locked = false}
+}
+
+local function updateCharacter()
+    local character = LocalPlayer.Character
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        if not CharacterSettings.WalkSpeed.Locked then
+            humanoid.WalkSpeed = CharacterSettings.WalkSpeed.Value
+        end
+        if not CharacterSettings.JumpPower.Locked then
+            humanoid.JumpPower = CharacterSettings.JumpPower.Value
+        end
+    end
+end
+
+Tabs.CharacterTab:Slider({
+    Title = "Walkspeed",
+    Value = {Min = 0, Max = 200, Default = 16},
+    Callback = function(value)
+        CharacterSettings.WalkSpeed.Value = value
+        updateCharacter()
+    end
+})
+
+Tabs.CharacterTab:Button({
+    Title = "Reset walkspeed",
+    Callback = function()
+        CharacterSettings.WalkSpeed.Value = CharacterSettings.WalkSpeed.Default
+        updateCharacter()
+    end
+})
+
+Tabs.CharacterTab:Toggle({
+    Title = "Block walkspeed",
+    Default = false,
+    Callback = function(state)
+        CharacterSettings.WalkSpeed.Locked = state
+        updateCharacter()
+    end
+})
+
+Tabs.CharacterTab:Slider({
+    Title = "Jumppower",
+    Value = {Min = 0, Max = 200, Default = 50},
+    Callback = function(value)
+        CharacterSettings.JumpPower.Value = value
+        updateCharacter()
+    end
+})
+
+
+Tabs.CharacterTab:Button({
+    Title = "Reset jumppower",
+    Callback = function()
+        CharacterSettings.JumpPower.Value = CharacterSettings.JumpPower.Default
+        updateCharacter()
+    end
+})
+
+Tabs.CharacterTab:Toggle({
+    Title = "Block jumppower",
+    Default = false,
+    Callback = function(state)
+        CharacterSettings.JumpPower.Locked = state
+        updateCharacter()
+    end
+})
+
+--[[ СИСТЕМА ESP ]]--
+local camera = workspace.CurrentCamera
+local playerHighlights = {}
+local textLabels = {}
+
+local ESPSettings = {
+    Names = false,
+    Distance = false,
+    Highlight = false,
+    Color = Color3.fromRGB(255, 0, 0),
+    Transparency = 0.5,
+    TextColor = Color3.new(1, 1, 1),
+    TextSize = 18
+}
+
+-- Настройки ESP
+Tabs.EspTab:Toggle({
+    Title = "Name ESP",
+    Default = false,
+    Callback = function(state) 
+        ESPSettings.Names = state
+    end
+})
+
+Tabs.EspTab:Toggle({
+    Title = "Distance ESP",
+    Default = false,
+    Callback = function(state) 
+        ESPSettings.Distance = state
+    end
+})
+
+Tabs.EspTab:Toggle({
+    Title = "Highlight ESP",
+    Default = false,
+    Callback = function(state) 
+        ESPSettings.Highlight = state
+    end
+})
+
+Tabs.EspTab:Section({Title = "Settings ESP"})
+
+Tabs.EspTab:Colorpicker({
+    Title = "Highlight color",
+    Default = ESPSettings.Color,
+    Callback = function(color)
+        ESPSettings.Color = color
+    end
+})
+
+Tabs.EspTab:Input({
+    Title = "Highlight transparency",
+    Default = 0.5,
+    Callback = function(value)
+        ESPSettings.Transparency = value
+    end
+})
+
+Tabs.EspTab:Colorpicker({
+    Title = "Esp text color",
+    Default = ESPSettings.TextColor,
+    Callback = function(color)
+        ESPSettings.TextColor = color
+    end
+})
+
+Tabs.EspTab:Slider({
+    Title = "Esp text size",
+    Value = {Min = 12, Max = 24, Default = 18},
+    Callback = function(value)
+        ESPSettings.TextSize = value
+    end
+})
+
+-- Основная логика ESP
+local function updateESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local character = player.Character
+            
+            -- Обработка подсветки
+            if ESPSettings.Highlight and character then
+                if not playerHighlights[player] then
+                    playerHighlights[player] = Instance.new("Highlight")
+                    playerHighlights[player].Parent = character
+                end
+                playerHighlights[player].FillColor = ESPSettings.Color
+                playerHighlights[player].FillTransparency = ESPSettings.Transparency
+            else
+                if playerHighlights[player] then
+                    playerHighlights[player]:Destroy()
+                    playerHighlights[player] = nil
+                end
+            end
+
+            -- Обработка текста
+            if (ESPSettings.Names or ESPSettings.Distance) and character then
+                if not textLabels[player] then
+                    textLabels[player] = Drawing.new("Text")
+                    textLabels[player].Outline = true
+                    textLabels[player].Center = true
+                end
+                
+                local head = character:FindFirstChild("Head")
+                if head then
+                    local screenPos = camera:WorldToViewportPoint(head.Position + Vector3.new(0, 1.5, 0))
+                    if screenPos.Z > 0 then
+                        local displayText = ""
+                        if ESPSettings.Names then displayText = player.Name end
+                        if ESPSettings.Distance then
+                            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - head.Position).Magnitude
+                            displayText = displayText .. " [" .. math.floor(distance) .. "]"
+                        end
+                        
+                        textLabels[player].Text = displayText
+                        textLabels[player].Position = Vector2.new(screenPos.X, screenPos.Y)
+                        textLabels[player].Color = ESPSettings.TextColor
+                        textLabels[player].Size = ESPSettings.TextSize
+                        textLabels[player].Visible = true
+                    else
+                        textLabels[player].Visible = false
+                    end
+                end
+            else
+                if textLabels[player] then
+                    textLabels[player].Visible = false
+                end
+            end
+        end
+    end
+end
+
+-- Автоматическое обновление
+RunService.Heartbeat:Connect(updateCharacter)
+RunService.RenderStepped:Connect(updateESP)
+
+-- Очистка при выходе
+Players.PlayerRemoving:Connect(function(player)
+    if playerHighlights[player] then
+        playerHighlights[player]:Destroy()
+        playerHighlights[player] = nil
+    end
+    if textLabels[player] then
+        textLabels[player]:Remove()
+        textLabels[player] = nil
+    end
+end)
+-- [[ TELEPORT СИСТЕМА ]] --
+local teleportTarget = nil
+
+-- Функция обновления списка игроков
+local function updateTeleportPlayers()
+    local playersList = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            table.insert(playersList, player.Name)
+        end
+    end
+    return playersList
+end
+
+-- Создаем дропдаун для выбора игроков
+local teleportDropdown = Tabs.TeleportTab:Dropdown({
+    Title = "Players to teleport",
+    Values = updateTeleportPlayers(),
+    Value = "Select Player",
+    Callback = function(selected)
+        teleportTarget = Players:FindFirstChild(selected)
+    end
+})
+
+-- Функция телепортации
+local function teleportToPlayer()
+    if teleportTarget and teleportTarget.Character then
+        local targetRoot = teleportTarget.Character:FindFirstChild("HumanoidRootPart")
+        local localRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        
+        if targetRoot and localRoot then
+            localRoot.CFrame = targetRoot.CFrame
+            WindUI:Notify({
+                Title = "Телепортация",
+                Content = "Успешно телепортирован к "..teleportTarget.Name,
+                Icon = "check-circle",
+                Duration = 3
+            })
+        end
+    else
+        WindUI:Notify({
+            Title = "Ошибка",
+            Content = "Цель не найдена или недоступна",
+            Icon = "x-circle",
+            Duration = 3
+        })
+    end
+end
+
+-- Кнопка телепортации
+Tabs.TeleportTab:Button({
+    Title = "Teleport to player",
+    Callback = teleportToPlayer
+})
+
+-- Кнопка обновления списка
+Tabs.TeleportTab:Button({
+    Title = "Update players list",
+    Callback = function()
+        teleportDropdown:Set("Values", updateTeleportPlayers())
+    end
+})
+
+-- Автоматическое обновление при подключении/отключении игроков
+Players.PlayerAdded:Connect(function()
+    teleportDropdown:Set("Values", updateTeleportPlayers())
+end)
+
+Players.PlayerRemoving:Connect(function()
+    teleportDropdown:Set("Values", updateTeleportPlayers())
+end)
+
+
+--[[ ОБНОВЛЕННАЯ СИСТЕМА АИМБОТА ]]--
+local isShiftLock = false
+local lastBodyGyro = nil
+local lockRadius = 100
+local cameraRotationSpeed = 0.2
+local isCameraLocked = false
+local lockedPlayer = nil
+
+-- Функция проверки валидности цели
+local function isValidTarget(player)
+    return player and player.Character 
+        and player.Character:FindFirstChild("Humanoid")
+        and player.Character.Humanoid.Health > 0
+        and player.Character:FindFirstChild("HumanoidRootPart")
+end
+
+-- Функция поворота персонажа
+local function rotateCharacterToTarget(targetPart)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local root = LocalPlayer.Character.HumanoidRootPart
+        
+        if lastBodyGyro then
+            lastBodyGyro:Destroy()
+        end
+
+        lastBodyGyro = Instance.new("BodyGyro")
+        lastBodyGyro.MaxTorque = Vector3.new(0, 9e9, 0)
+        lastBodyGyro.P = 1200
+        lastBodyGyro.CFrame = CFrame.new(root.Position, targetPart.Position)
+        lastBodyGyro.Parent = root
+    end
+end
+
+-- Обновленный дропдаун
+local function updatePlayerDropdown()
+    local playersList = {"None"}
+    for _, player in Players:GetPlayers() do
+        if player ~= LocalPlayer and isValidTarget(player) then
+            table.insert(playersList, player.Name)
+        end
+    end
+    return playersList
+end
+
+local dropdown = Tabs.AimbotTab:Dropdown({
+    Title = "Players to lock camera",
+    Values = updatePlayerDropdown(),
+    Value = "None",
+    Callback = function(selected)
+        lockedPlayer = (selected ~= "None") and Players:FindFirstChild(selected) or nil
+    end
+})
+
+-- Функция поиска ближайшего игрока
+local function getNearestPlayer(radius)
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then 
+        return nil 
+    end
+    
+    local nearestPlayer = nil
+    local minDistance = math.huge
+    local localPosition = LocalPlayer.Character.HumanoidRootPart.Position
+
+    for _, player in Players:GetPlayers() do
+        if player ~= LocalPlayer and isValidTarget(player) then
+            local targetPosition = player.Character.HumanoidRootPart.Position
+            local distance = (localPosition - targetPosition).Magnitude
+            
+            if distance <= radius and distance < minDistance then
+                minDistance = distance
+                nearestPlayer = player
+            end
+        end
+    end
+    
+    return nearestPlayer
+end
+
+-- Основной цикл
+RunService.RenderStepped:Connect(function()
+    if isCameraLocked then
+        local target = lockedPlayer or getNearestPlayer(lockRadius)
+        
+        if target and isValidTarget(target) then
+            local rootPart = target.Character.HumanoidRootPart
+            
+            -- Поворот камеры
+            camera.CFrame = camera.CFrame:Lerp(
+                CFrame.lookAt(camera.CFrame.Position, rootPart.Position),
+                cameraRotationSpeed
+            )
+            
+            -- Поворот персонажа
+            if isShiftLock then
+                rotateCharacterToTarget(rootPart)
+            end
+            
+            targetIndicator.Adornee = rootPart
+            targetIndicator.Enabled = true
+        else
+            targetIndicator.Enabled = false
+            camera.CameraType = Enum.CameraType.Custom
+        end
+    end
+end)
+
+-- Кнопки управления
+Tabs.AimbotTab:Toggle({
+    Title = "Lock camera to player",
+    Default = false,
+    Callback = function(state)
+        isCameraLocked = state
+        camera.CameraType = state and Enum.CameraType.Scriptable or Enum.CameraType.Custom
+    end
+})
+
+Tabs.AimbotTab:Toggle({
+    Title = "ShiftLock Rotation",
+    Default = false,
+    Callback = function(state)
+        isShiftLock = state
+        if not state and lastBodyGyro then
+            lastBodyGyro:Destroy()
+        end
+    end
+})
+
+-- Система обновления списка
+local function refreshPlayerList()
+    dropdown:Set("Values", updatePlayerDropdown())
+end
+
+Tabs.AimbotTab:Button({
+    Title = "🔄 Refresh Player List",
+    Callback = refreshPlayerList
+})
+
+-- Автоматическое обновление
+local function trackPlayer(player)
+    if player.Character then
+        player.Character.Humanoid.Died:Connect(refreshPlayerList)
+        player.CharacterAdded:Connect(function()
+            player.Character:WaitForChild("Humanoid").Died:Connect(refreshPlayerList)
+            refreshPlayerList()
+        end)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    trackPlayer(player)
+    refreshPlayerList()
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if player == lockedPlayer then
+        lockedPlayer = nil
+    end
+    refreshPlayerList()
+end)
+
+-- Инициализация для существующих игроков
+for _, player in Players:GetPlayers() do
+    if player ~= LocalPlayer then
+        trackPlayer(player)
+    end
+end
+
+local Settings = {
+    Hitbox = {
+        Enabled = false,
+        Size = 5,
+        Color = Color3.new(1,0,0),
+        Adornments = {},
+        Connections = {}
+    },
+    Noclip = {
+        Enabled = false,
+        Connection = nil
+    },
+    AntiAFK = {
+        Enabled = false,
+        Connection = nil
+    }
+}
+
+-- Ноклип
+local function ToggleNoclip(state)
+        if state then
+            Settings.Noclip.Connection = RunService.Stepped:Connect(function()
+                local chr = LocalPlayer.Character
+                if chr then
+                    for _, part in pairs(chr:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+                end)
+        else
+            if Settings.Noclip.Connection then
+                Settings.Noclip.Connection:Disconnect()
+            end
+        end
+end
+
+-- Хитбоксы
+local function UpdateHitboxes()
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer then
+                local chr = plr.Character
+                local box = Settings.Hitbox.Adornments[plr]
+                
+                if chr and Settings.Hitbox.Enabled then
+                    local root = chr:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        if not box then
+                            box = Instance.new("BoxHandleAdornment")
+                            box.Adornee = root
+                            box.Size = Vector3.new(Settings.Hitbox.Size, Settings.Hitbox.Size, Settings.Hitbox.Size)
+                            box.Color3 = Settings.Hitbox.Color
+                            box.Transparency = 0.4
+                            box.ZIndex = 10
+                            box.Parent = root
+                            Settings.Hitbox.Adornments[plr] = box
+                        else
+                            box.Size = Vector3.new(Settings.Hitbox.Size, Settings.Hitbox.Size, Settings.Hitbox.Size)
+                            box.Color3 = Settings.Hitbox.Color
+                        end
+                    end
+                elseif box then
+                    box:Destroy()
+                    Settings.Hitbox.Adornments[plr] = nil
+                end
+            end
+        end
+end
+
+-- Анти-AFK
+local function ToggleAntiAFK(state)
+        if state then
+            Settings.AntiAFK.Connection = RunService.Heartbeat:Connect(function()
+                pcall(function()
+                    local vu = game:GetService("VirtualUser")
+                    vu:CaptureController()
+                    vu:ClickButton2(Vector2.new())
+                end)
+            end)
+        else
+            if Settings.AntiAFK.Connection then
+                Settings.AntiAFK.Connection:Disconnect()
+            end
+        end
+end
+
+-- Интерфейс
+
+Tabs.SettingsTab:Toggle({
+    Title = "NoClip",
+    Callback = function(state)
+        Settings.Noclip.Enabled = state
+        ToggleNoclip(state)
+    end
+})
+
+Tabs.SettingsTab:Toggle({
+    Title = "Hixboxes",
+    Callback = function(state)
+        Settings.Hitbox.Enabled = state
+        if state then
+            RunService.Heartbeat:Connect(UpdateHitboxes)
+        else
+            for _, box in pairs(Settings.Hitbox.Adornments) do
+                box:Destroy()
+            end
+            Settings.Hitbox.Adornments = {}
+        end
+    end
+})
+
+Tabs.SettingsTab:Slider({
+    Title = "Hitbox size",
+    Value = {Min=1, Max=10, Default=5},
+    Callback = function(val)
+        Settings.Hitbox.Size = val
+        UpdateHitboxes()
+    end
+})
+
+Tabs.SettingsTab:Colorpicker({
+    Title = "Hitbox color",
+    Default = Color3.new(1,0,0),
+    Callback = function(col)
+        Settings.Hitbox.Color = col
+        UpdateHitboxes()
+    end
+})
+
+Tabs.SettingsTab:Toggle({
+    Title = "Anti-AFK",
+    Callback = function(state)
+        Settings.AntiAFK.Enabled = state
+        ToggleAntiAFK(state)
+    end
+})
+
+-- [[ Socials ]] --
+
+Tabs.SocialsTab:Paragraph({
+    Title = "SnowT",
+    Desc = "Join to my socials for know more information!",
+    Image = "snowflake",
+    Color = "Blue",
+    Buttons = { Title = "TG", Callback = function() setclipboard("t.me/supreme_scripts") end }
+})
+
+Tabs.SocialsTab:Paragraph({
+    Title = "Mirroz",
+    Desc = "Join to socials my friend for get more scripts!",
+    Image = "tree",
+    Color = "Green",
+    Buttons = { Title = "TG", Callback = function() setclipboard("t.me/mirrozzscript")
+        end }
+})
+
+-- [[ Changelogs ]] --
+
+Tabs.ChangelogsTab:Code({
+    Title = "Changelogs:",
+    Code = [[
+    Changelogs of script [v0.2]
+    • Script has been released
+    • Updated to v0.2
+    • Fixed some bugs
+    • Added Changelogs Tab, Server Tab, Socials Tab!
+    • New design for UI
+    • Added full key system
+   More functions will be added in future!
+]]
+})
+
+Tabs.ChangelogsTab:Code({
+    Title = "Next update:",
+    Code = [[ Next changelogs in [v0.3] :
+    • New tabs: fun, fly!
+    • Fix esp and aimbot
+    • Fixed more bugs
+    • New design!
+   The date of update: 01.05.2025!
+]]
+})
+
+-- [[ Server ]] --
+
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+
+Tabs.ServerTab:Button({
+    Title = "Rejoin",
+    Callback = function()
+        local success, error = pcall(function()
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Players.LocalPlayer)
+        end)
+        if not success then
+            warn("Rejoin error:", error)
+        end
+    end
+})
+
+Tabs.ServerTab:Button({
+    Title = "Server Hop",
+    Callback = function()
+        local placeId = game.PlaceId
+        local currentJobId = game.JobId
+        
+        local function serverHop()
+            local servers = {}
+            local success, result = pcall(function()
+                return HttpService:JSONDecode(HttpService:GetAsync("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"))
+            end)
+            
+            if success and result and result.data then
+                for _, server in ipairs(result.data) do
+                    if server.id ~= currentJobId then
+                        table.insert(servers, server)
+                    end
+                end
+                
+                if #servers > 0 then
+                    TeleportService:TeleportToPlaceInstance(placeId, servers[math.random(#servers)].id)
+                else
+                    TeleportService:Teleport(placeId)
+                end
+            else
+                TeleportService:Teleport(placeId)
+            end
+        end
+        
+        pcall(serverHop)
+    end
+})
+
+Tabs.ServerTab:Button({
+    Title = "Join to Lower Server",
+    Callback = function()
+        local placeId = game.PlaceId
+        local currentJobId = game.JobId
+        
+        local function joinLowerServer()
+            local servers = {}
+            local success, result = pcall(function()
+                return HttpService:JSONDecode(HttpService:GetAsync("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"))
+            end)
+            
+            if success and result and result.data then
+                for _, server in ipairs(result.data) do
+                    if server.id ~= currentJobId and server.playing < (server.maxPlayers or 30) then
+                        table.insert(servers, server)
+                    end
+                end
+                
+                table.sort(servers, function(a, b)
+                    return a.playing < b.playing
+                end)
+                
+                if #servers > 0 then
+                    TeleportService:TeleportToPlaceInstance(placeId, servers[1].id)
+                else
+                    TeleportService:Teleport(placeId)
+                end
+            else
+                TeleportService:Teleport(placeId)
+            end
+        end
+        
+        pcall(joinLowerServer)
+    end
+})
+
+-- UI настройки
+local HttpService = game:GetService("HttpService")
+
+local folderPath = "WindUI"
+makefolder(folderPath)
+
+local function SaveFile(fileName, data)
+    local filePath = folderPath .. "/" .. fileName .. ".json"
+    local jsonData = HttpService:JSONEncode(data)
+    writefile(filePath, jsonData)
+end
+
+local function LoadFile(fileName)
+    local filePath = folderPath .. "/" .. fileName .. ".json"
+    if isfile(filePath) then
+        local jsonData = readfile(filePath)
+        return HttpService:JSONDecode(jsonData)
+    end
+end
+
+local function ListFiles()
+    local files = {}
+    for _, file in ipairs(listfiles(folderPath)) do
+        local fileName = file:match("([^/]+)%.json$")
+        if fileName then
+            table.insert(files, fileName)
+        end
+    end
+    return files
+end
+
+Tabs.WindowTab:Section({ Title = "Window" })
+local themeValues = {}
+for name, _ in pairs(WindUI:GetThemes()) do
+    table.insert(themeValues, name)
+end
+
+local themeDropdown = Tabs.WindowTab:Dropdown({
+    Title = "Select Theme",
+    Multi = false,
+    AllowNone = false,
+    Value = nil,
+    Values = themeValues,
+    Callback = function(theme)
+        WindUI:SetTheme(theme)
+    end
+})
+
+themeDropdown:Select(WindUI:GetCurrentTheme())
+
+local ToggleTransparency = Tabs.WindowTab:Toggle({
+    Title = "Toggle Window Transparency",
+    Callback = function(e)
+        Window:ToggleTransparency(e)
+    end,
+    Value = WindUI:GetTransparency()
+})
+
+Tabs.WindowTab:Section({ Title = "Save" })
+
+local fileNameInput = ""
+Tabs.WindowTab:Input({
+    Title = "Write File Name",
+    PlaceholderText = "Enter file name",
+    Callback = function(text)
+        fileNameInput = text
+    end
+})
+
+Tabs.WindowTab:Button({
+    Title = "Save File",
+    Callback = function()
+        if fileNameInput ~= "" then
+            SaveFile(fileNameInput, { Transparent = WindUI:GetTransparency(), Theme = WindUI:GetCurrentTheme() })
+        end
+    end
+})
+
+Tabs.WindowTab:Section({ Title = "Load" })
+
+local filesDropdown
+local files = ListFiles()
+
+filesDropdown = Tabs.WindowTab:Dropdown({
+    Title = "Select File",
+    Multi = false,
+    AllowNone = true,
+    Values = files,
+    Callback = function(selectedFile)
+        fileNameInput = selectedFile
+    end
+})
+
+Tabs.WindowTab:Button({
+    Title = "Load File",
+    Callback = function()
+        if fileNameInput ~= "" then
+            local data = LoadFile(fileNameInput)
+            if data then
+                WindUI:Notify({
+                    Title = "File Loaded",
+                    Content = "Loaded data: " .. HttpService:JSONEncode(data),
+                    Duration = 5,
+                })
+                if data.Transparent then 
+                    Window:ToggleTransparency(data.Transparent)
+                    ToggleTransparency:SetValue(data.Transparent)
+                end
+                if data.Theme then WindUI:SetTheme(data.Theme) end
+            end
+        end
+    end
+})
+
+Tabs.WindowTab:Button({
+    Title = "Overwrite File",
+    Callback = function()
+        if fileNameInput ~= "" then
+            SaveFile(fileNameInput, { Transparent = WindUI:GetTransparency(), Theme = WindUI:GetCurrentTheme() })
+        end
+    end
+})
+
+Tabs.WindowTab:Button({
+    Title = "Refresh List",
+    Callback = function()
+        filesDropdown:Refresh(ListFiles())
+    end
+})
+
+local currentThemeName = WindUI:GetCurrentTheme()
+local themes = WindUI:GetThemes()
+
+local ThemeAccent = themes[currentThemeName].Accent
+local ThemeOutline = themes[currentThemeName].Outline
+local ThemeText = themes[currentThemeName].Text
+local ThemePlaceholderText = themes[currentThemeName].PlaceholderText
+
+function updateTheme()
+    WindUI:AddTheme({
+        Name = currentThemeName,
+        Accent = ThemeAccent,
+        Outline = ThemeOutline,
+        Text = ThemeText,
+        PlaceholderText = ThemePlaceholderText
+    })
+    WindUI:SetTheme(currentThemeName)
+end
+
+Tabs.CreateThemeTab:Colorpicker({
+    Title = "Background Color",
+    Default = Color3.fromHex(ThemeAccent),
+    Callback = function(color)
+        ThemeAccent = color -- Убрано :ToHex()
+    end
+})
+
+Tabs.CreateThemeTab:Colorpicker({
+    Title = "Outline Color",
+    Default = Color3.fromHex(ThemeOutline),
+    Callback = function(color)
+        ThemeOutline = color -- Убрано :ToHex()
+    end
+})
+
+Tabs.CreateThemeTab:Colorpicker({
+    Title = "Text Color",
+    Default = Color3.fromHex(ThemeText),
+    Callback = function(color)
+        ThemeText = color -- Убрано :ToHex()
+    end
+})
+
+Tabs.CreateThemeTab:Colorpicker({
+    Title = "Placeholder Text Color",
+    Default = Color3.fromHex(ThemePlaceholderText),
+    Callback = function(color)
+        ThemePlaceholderText = color -- Убрано :ToHex()
+    end
+})
+
+Tabs.CreateThemeTab:Button({
+    Title = "Update Theme",
+    Callback = function()
+        WindUI:AddTheme({
+            Name = currentThemeName,
+            Accent = ThemeAccent,
+            Outline = ThemeOutline,
+            Text = ThemeText,
+            PlaceholderText = ThemePlaceholderText
+        })
+        WindUI:SetTheme(currentThemeName)
+        WindUI:Notify({
+            Title = "Тема обновлена",
+            Content = "Новая тема '"..currentThemeName.."' применена!",
+            Duration = 3,
+            Icon = "check-circle"
+        })
+    end
+})
