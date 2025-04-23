@@ -66,7 +66,7 @@ local Window = WindUI:CreateWindow({
     KeySystem = {
         Key = { "SnowTHasRelasedScriptWithMirroz!" },
         Note = "Введите ключ:",
-        URL = "",
+        URL = "https://rkns.link/u13so",
         SaveKey = false,
     },
 })
@@ -712,7 +712,7 @@ Tabs.SocialsTab:Paragraph({
 Tabs.SocialsTab:Button({
     Title = "SnowT Channel",
     Callback = function()
-        setClipboard("t.me/supreme_scripts")
+        SetClipboard("t.me/supreme_scripts")
     end
 })
 
@@ -726,7 +726,7 @@ Tabs.SocialsTab:Paragraph({
 Tabs.SocialsTab:Button({
     Title = "Mirrozz Channel",
     Callback = function()
-        setClipboard("t.me/mirrozzscript")
+        SetClipboard("t.me/mirrozzscript")
     end
 })
 
