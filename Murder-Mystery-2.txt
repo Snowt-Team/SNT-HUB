@@ -175,12 +175,36 @@ Tabs.CharacterTab:Toggle({
     end
 })
 
+-- В начале скрипта добавьте эти переменные для ESP
+local ESPSettings = {
+    Names = false,
+    Distance = false,
+    Highlight = false,
+    Color = Color3.fromRGB(255, 0, 0),
+    Transparency = 0.5,
+    TextColor = Color3.fromRGB(255, 255, 255),
+    TextSize = 18
+}
+
+local playerHighlights = {}
+local textLabels = {}
+local camera = workspace.CurrentCamera
+
+-- Замените весь раздел ESP на этот:
+
 -- Настройки ESP
 Tabs.EspTab:Toggle({
     Title = "Name ESP",
     Default = false,
     Callback = function(state) 
         ESPSettings.Names = state
+        if not state then
+            for _, label in pairs(textLabels) do
+                if label then
+                    label.Visible = false
+                end
+            end
+        end
     end
 })
 
@@ -189,6 +213,13 @@ Tabs.EspTab:Toggle({
     Default = false,
     Callback = function(state) 
         ESPSettings.Distance = state
+        if not state then
+            for _, label in pairs(textLabels) do
+                if label then
+                    label.Visible = false
+                end
+            end
+        end
     end
 })
 
@@ -197,6 +228,14 @@ Tabs.EspTab:Toggle({
     Default = false,
     Callback = function(state) 
         ESPSettings.Highlight = state
+        if not state then
+            for _, highlight in pairs(playerHighlights) do
+                if highlight then
+                    highlight:Destroy()
+                end
+            end
+            playerHighlights = {}
+        end
     end
 })
 
@@ -219,29 +258,32 @@ local Murder, Sheriff, Hero
 local roles = {}
 
 -- Функции
-function CreateHighlight(player)
-    if player ~= LP and player.Character and not player.Character:FindFirstChild("Highlight") then
-        local highlight = Instance.new("Highlight")
-        highlight.Parent = player.Character
-        highlight.Adornee = player.Character
-        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+function CreateSpecialHighlight(player)
+    if player ~= LP and player.Character then
+        local highlight = player.Character:FindFirstChild("SpecialHighlight")
+        if not highlight then
+            highlight = Instance.new("Highlight")
+            highlight.Name = "SpecialHighlight"
+            highlight.Parent = player.Character
+            highlight.Adornee = player.Character
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        end
         return highlight
     end
-    return player.Character and player.Character:FindFirstChild("Highlight")
 end
 
-function RemoveAllHighlights()
+function RemoveSpecialHighlights()
     for _, player in pairs(Players:GetPlayers()) do
-        if player.Character and player.Character:FindFirstChild("Highlight") then
-            player.Character.Highlight:Destroy()
+        if player.Character and player.Character:FindFirstChild("SpecialHighlight") then
+            player.Character.SpecialHighlight:Destroy()
         end
     end
 end
 
-function UpdateHighlights()
+function UpdateSpecialHighlights()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LP and player.Character then
-            local highlight = player.Character:FindFirstChild("Highlight")
+            local highlight = player.Character:FindFirstChild("SpecialHighlight")
             
             -- Если ни один тоггл не активен, удаляем Highlight
             if not (ESPConfig.HighlightMurderer or ESPConfig.HighlightInnocent or ESPConfig.HighlightSheriff) then
@@ -271,7 +313,7 @@ function UpdateHighlights()
             end
             
             if shouldHighlight then
-                highlight = CreateHighlight(player)
+                highlight = CreateSpecialHighlight(player)
                 if highlight then
                     highlight.FillColor = color
                     highlight.OutlineColor = color
@@ -312,7 +354,7 @@ Tabs.EspTab:Toggle({
     Default = false,
     Callback = function(state) 
         ESPConfig.HighlightMurderer = state
-        if not state then UpdateHighlights() end
+        if not state then UpdateSpecialHighlights() end
     end
 })
 
@@ -321,7 +363,7 @@ Tabs.EspTab:Toggle({
     Default = false,
     Callback = function(state) 
         ESPConfig.HighlightInnocent = state
-        if not state then UpdateHighlights() end
+        if not state then UpdateSpecialHighlights() end
     end
 })
 
@@ -330,24 +372,110 @@ Tabs.EspTab:Toggle({
     Default = false,
     Callback = function(state) 
         ESPConfig.HighlightSheriff = state
-        if not state then UpdateHighlights() end
+        if not state then UpdateSpecialHighlights() end
     end
 })
+
+-- Основная функция обновления ESP
+local function updateESP()
+    -- Обновляем обычный ESP
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LP then
+            local character = player.Character
+            
+            -- Обработка обычной подсветки
+            if ESPSettings.Highlight and character then
+                if not playerHighlights[player] then
+                    playerHighlights[player] = Instance.new("Highlight")
+                    playerHighlights[player].Parent = character
+                    playerHighlights[player].Adornee = character
+                end
+                playerHighlights[player].FillColor = ESPSettings.Color
+                playerHighlights[player].OutlineColor = ESPSettings.Color
+                playerHighlights[player].FillTransparency = ESPSettings.Transparency
+                playerHighlights[player].Enabled = true
+            else
+                if playerHighlights[player] then
+                    playerHighlights[player]:Destroy()
+                    playerHighlights[player] = nil
+                end
+            end
+
+            -- Обработка текста ESP
+            if (ESPSettings.Names or ESPSettings.Distance) and character then
+                if not textLabels[player] then
+                    textLabels[player] = Drawing.new("Text")
+                    textLabels[player].Outline = true
+                    textLabels[player].Center = true
+                    textLabels[player].Size = ESPSettings.TextSize
+                end
+                
+                local head = character:FindFirstChild("Head")
+                if head then
+                    local screenPos, visible = camera:WorldToViewportPoint(head.Position + Vector3.new(0, 1.5, 0))
+                    if visible then
+                        local displayText = ""
+                        if ESPSettings.Names then displayText = player.Name end
+                        if ESPSettings.Distance then
+                            local distance = (LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and 
+                                           (LP.Character.HumanoidRootPart.Position - head.Position).Magnitude) or 0
+                            displayText = displayText .. " [" .. math.floor(distance) .. "]"
+                        end
+                        
+                        textLabels[player].Text = displayText
+                        textLabels[player].Position = Vector2.new(screenPos.X, screenPos.Y)
+                        textLabels[player].Color = ESPSettings.TextColor
+                        textLabels[player].Visible = true
+                    else
+                        textLabels[player].Visible = false
+                    end
+                end
+            else
+                if textLabels[player] then
+                    textLabels[player].Visible = false
+                end
+            end
+        end
+    end
+    
+    -- Обновляем специальные Highlight (для ролей)
+    if ESPConfig.HighlightMurderer or ESPConfig.HighlightInnocent or ESPConfig.HighlightSheriff then
+        UpdateSpecialHighlights()
+    end
+end
 
 -- Основной цикл
 RunService.RenderStepped:Connect(function()
     UpdateRoles()
-    
-    -- Обновляем Highlight только если хотя бы один тоггл активен
-    if ESPConfig.HighlightMurderer or ESPConfig.HighlightInnocent or ESPConfig.HighlightSheriff then
-        UpdateHighlights()
-    end
+    updateESP()
 end)
 
 -- Очистка при выходе
 Players.PlayerRemoving:Connect(function(player)
     if player == LP then
-        RemoveAllHighlights()
+        RemoveSpecialHighlights()
+        for _, label in pairs(textLabels) do
+            if label then
+                label:Remove()
+            end
+        end
+        for _, highlight in pairs(playerHighlights) do
+            if highlight then
+                highlight:Destroy()
+            end
+        end
+    else
+        if textLabels[player] then
+            textLabels[player]:Remove()
+            textLabels[player] = nil
+        end
+        if playerHighlights[player] then
+            playerHighlights[player]:Destroy()
+            playerHighlights[player] = nil
+        end
+        if player.Character and player.Character:FindFirstChild("SpecialHighlight") then
+            player.Character.SpecialHighlight:Destroy()
+        end
     end
 end)
 
@@ -361,9 +489,9 @@ Tabs.EspTab:Colorpicker({
     end
 })
 
-Tabs.EspTab:Input({
+Tabs.EspTab:Slider({
     Title = "Highlight transparency",
-    Default = 0.5,
+    Value = {Min = 0, Max = 1, Default = 0.5, Decimals = 1},
     Callback = function(value)
         ESPSettings.Transparency = value
     end
@@ -382,82 +510,13 @@ Tabs.EspTab:Slider({
     Value = {Min = 12, Max = 24, Default = 18},
     Callback = function(value)
         ESPSettings.TextSize = value
-    end
-})
-
--- Основная логика ESP
-local function updateESP()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local character = player.Character
-            
-            -- Обработка подсветки
-            if ESPSettings.Highlight and character then
-                if not playerHighlights[player] then
-                    playerHighlights[player] = Instance.new("Highlight")
-                    playerHighlights[player].Parent = character
-                end
-                playerHighlights[player].FillColor = ESPSettings.Color
-                playerHighlights[player].FillTransparency = ESPSettings.Transparency
-            else
-                if playerHighlights[player] then
-                    playerHighlights[player]:Destroy()
-                    playerHighlights[player] = nil
-                end
-            end
-
-            -- Обработка текста
-            if (ESPSettings.Names or ESPSettings.Distance) and character then
-                if not textLabels[player] then
-                    textLabels[player] = Drawing.new("Text")
-                    textLabels[player].Outline = true
-                    textLabels[player].Center = true
-                end
-                
-                local head = character:FindFirstChild("Head")
-                if head then
-                    local screenPos = camera:WorldToViewportPoint(head.Position + Vector3.new(0, 1.5, 0))
-                    if screenPos.Z > 0 then
-                        local displayText = ""
-                        if ESPSettings.Names then displayText = player.Name end
-                        if ESPSettings.Distance then
-                            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - head.Position).Magnitude
-                            displayText = displayText .. " [" .. math.floor(distance) .. "]"
-                        end
-                        
-                        textLabels[player].Text = displayText
-                        textLabels[player].Position = Vector2.new(screenPos.X, screenPos.Y)
-                        textLabels[player].Color = ESPSettings.TextColor
-                        textLabels[player].Size = ESPSettings.TextSize
-                        textLabels[player].Visible = true
-                    else
-                        textLabels[player].Visible = false
-                    end
-                end
-            else
-                if textLabels[player] then
-                    textLabels[player].Visible = false
-                end
+        for _, label in pairs(textLabels) do
+            if label then
+                label.Size = value
             end
         end
     end
-end
-
--- Автоматическое обновление
-RunService.Heartbeat:Connect(updateCharacter)
-RunService.RenderStepped:Connect(updateESP)
-
--- Очистка при выходе
-Players.PlayerRemoving:Connect(function(player)
-    if playerHighlights[player] then
-        playerHighlights[player]:Destroy()
-        playerHighlights[player] = nil
-    end
-    if textLabels[player] then
-        textLabels[player]:Remove()
-        textLabels[player] = nil
-    end
-end)
+})
 -- [[ TELEPORT СИСТЕМА ]] --
 local teleportTarget = nil
 
