@@ -56,7 +56,7 @@ WindUI:Notify({
 
 
 local Window = WindUI:CreateWindow({
-    Title = "Murder Mystery 2 | SNT Hub",
+    Title = "SNT&MirrozzScript | MM2 [Alpha]",
     Icon = "infinity",
     Author = "SnOwT",
     Folder = "WindUI",
@@ -343,7 +343,7 @@ end
 
 -- Создаем дропдаун для выбора игроков
 local teleportDropdown = Tabs.TeleportTab:Dropdown({
-    Title = "Players to teleport",
+    Title = "Players",
     Values = updateTeleportPlayers(),
     Value = "Select Player",
     Callback = function(selected)
@@ -445,7 +445,7 @@ local function updatePlayerDropdown()
 end
 
 local dropdown = Tabs.AimbotTab:Dropdown({
-    Title = "Players to lock camera",
+    Title = "Players",
     Values = updatePlayerDropdown(),
     Value = "None",
     Callback = function(selected)
@@ -508,7 +508,7 @@ end)
 
 -- Кнопки управления
 Tabs.AimbotTab:Toggle({
-    Title = "Lock camera to player",
+    Title = "Lock camera",
     Default = false,
     Callback = function(state)
         isCameraLocked = state
@@ -533,7 +533,7 @@ local function refreshPlayerList()
 end
 
 Tabs.AimbotTab:Button({
-    Title = "🔄 Refresh Player List",
+    Title = "Refresh Players",
     Callback = refreshPlayerList
 })
 
@@ -560,7 +560,102 @@ Players.PlayerRemoving:Connect(function(player)
     refreshPlayerList()
 end)
 
--- Инициализация для существующих игроков
+local function GetGun()
+    for _, v in ipairs(workspace:GetChildren()) do
+        if v.Name == "GunDrop" then
+            LocalPlayer.Character:FindFirstChild("HumanoidRootPart").CFrame = v.CFrame
+            end
+    end
+end
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+function FindMurderer()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local knife = player.Character:FindFirstChild("Knife") or player.Backpack:FindFirstChild("Knife")
+            if knife then
+                return player
+            end
+        end
+    end
+    return nil
+end
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+-- Находим Убийцу
+function FindMurderer()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local knife = player.Character:FindFirstChild("Knife") or player.Backpack:FindFirstChild("Knife")
+            if knife then
+                return player
+            end
+        end
+    end
+    return nil
+end
+
+local function ShootMurder()
+    local gun = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")
+    if not gun then return end
+
+    local murderer = FindMurderer()
+    if murderer and murderer.Character then
+        local head = murderer.Character:FindFirstChild("Head")
+        if head then
+            local camera = workspace.CurrentCamera
+            camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
+            
+            if gun:FindFirstChildOfClass("Tool") then
+                gun:Activate()
+            else
+                local remote = game.ReplicatedStorage:FindFirstChild("ShootRemote")
+                if remote then
+                    remote:FireServer(head.Position)
+                end
+            end
+        end
+    end
+end
+
+
+
+Tabs.CombatTab:Section({Title = "Innocent"})
+
+Tabs.CombatTab:Button({
+    Title = "Grab Gun",
+    Callback = function()
+        GetGun()
+    end
+})
+
+Tabs.CombatTab:Section({Title = "Murder"})
+
+Tabs.CombatTab:Button({
+    Title = "Kill All",
+    Callback = function()
+        WindUI:Notify({
+    Title = "Ошибка!",
+    Content = "Функция на стадии разработки",
+    Icon = "check-circle",
+    Duration = 3,
+})
+    end
+})
+
+Tabs.CombatTab:Section({Title = "Sheriff"})
+
+Tabs.CombatTab:Button({
+    Title = "Shoot Murder",
+    Callback = function()
+        ShootMurder()
+    end
+})
 for _, player in Players:GetPlayers() do
     if player ~= LocalPlayer then
         trackPlayer(player)
@@ -702,6 +797,149 @@ Tabs.SettingsTab:Toggle({
     Callback = function(state)
         Settings.AntiAFK.Enabled = state
         ToggleAntiAFK(state)
+    end
+})
+
+-- [[ Socials ]] --
+
+Tabs.SocialsTab:Paragraph({
+    Title = "SnowT",
+    Desc = "Join to my socials for know more information!",
+    Image = "snowflake",
+    Color = "Blue"
+})
+
+Tabs.SocialsTab:Button({
+    Title = "SnowT Channel",
+    Callback = function()
+        SetClipboard("t.me/supreme_scripts")
+    end
+})
+
+Tabs.SocialsTab:Paragraph({
+    Title = "Mirrozz",
+    Desc = "Join to socials my friend for get more scripts!",
+    Image = "eye",
+    Color = "Green"
+})
+
+Tabs.SocialsTab:Button({
+    Title = "Mirrozz Channel",
+    Callback = function()
+        SetClipboard("t.me/mirrozzscript")
+    end
+})
+
+-- [[ Changelogs ]] --
+
+Tabs.ChangelogsTab:Code({
+    Title = "Changelogs:",
+    Code = [[
+    Early release [Alpha]:
+    • Script has been released
+    • Shoot murder function
+    • Grab gun function
+    • Esp all: murderer, sheriff, innocent
+   More functions will be added in future!
+]]
+})
+
+Tabs.ChangelogsTab:Code({
+    Title = "Next update:",
+    Code = [[ The next update is Alpha [0.1.1]
+    In future we will be add:
+    • New autofarm function
+    • New Kill all function
+    • Fix bugs
+   The date of update: 17.05.2025!
+]]
+})
+
+-- [[ Server ]] --
+
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+
+Tabs.ServerTab:Button({
+    Title = "Rejoin",
+    Callback = function()
+        local success, error = pcall(function()
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Players.LocalPlayer)
+        end)
+        if not success then
+            warn("Rejoin error:", error)
+        end
+    end
+})
+
+Tabs.ServerTab:Button({
+    Title = "Server Hop",
+    Callback = function()
+        local placeId = game.PlaceId
+        local currentJobId = game.JobId
+        
+        local function serverHop()
+            local servers = {}
+            local success, result = pcall(function()
+                return HttpService:JSONDecode(HttpService:GetAsync("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"))
+            end)
+            
+            if success and result and result.data then
+                for _, server in ipairs(result.data) do
+                    if server.id ~= currentJobId then
+                        table.insert(servers, server)
+                    end
+                end
+                
+                if #servers > 0 then
+                    TeleportService:TeleportToPlaceInstance(placeId, servers[math.random(#servers)].id)
+                else
+                    TeleportService:Teleport(placeId)
+                end
+            else
+                TeleportService:Teleport(placeId)
+            end
+        end
+        
+        pcall(serverHop)
+    end
+})
+
+Tabs.ServerTab:Button({
+    Title = "Join to Lower Server",
+    Callback = function()
+        local placeId = game.PlaceId
+        local currentJobId = game.JobId
+        
+        local function joinLowerServer()
+            local servers = {}
+            local success, result = pcall(function()
+                return HttpService:JSONDecode(HttpService:GetAsync("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"))
+            end)
+            
+            if success and result and result.data then
+                for _, server in ipairs(result.data) do
+                    if server.id ~= currentJobId and server.playing < (server.maxPlayers or 30) then
+                        table.insert(servers, server)
+                    end
+                end
+                
+                table.sort(servers, function(a, b)
+                    return a.playing < b.playing
+                end)
+                
+                if #servers > 0 then
+                    TeleportService:TeleportToPlaceInstance(placeId, servers[1].id)
+                else
+                    TeleportService:Teleport(placeId)
+                end
+            else
+                TeleportService:Teleport(placeId)
+            end
+        end
+        
+        pcall(joinLowerServer)
     end
 })
 
