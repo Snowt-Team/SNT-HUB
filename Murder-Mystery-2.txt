@@ -29,7 +29,7 @@ end
 local Confirmed = false
 
 WindUI:Popup({
-    Title = "Script loader",
+    Title = gradient("Script loader", Color3.fromHex("#001e80"), Color3.fromHex("#16f2d9")),
     Icon = "info",
     Content = "This script made by " .. gradient("SnowTTeam", Color3.fromHex("#001e80"), Color3.fromHex("#16f2d9")),
     Buttons = {
@@ -40,7 +40,7 @@ WindUI:Popup({
             Variant = "Tertiary", -- Primary, Secondary, Tertiary
         },
         {
-            Title = "Load script",
+            Title = gradient("Load Script", Color3.fromHex("#001e80"), Color3.fromHex("#16f2d9")),
             Icon = "arrow-right",
             Callback = function() Confirmed = true end,
             Variant = "Secondary", -- Primary, Secondary, Tertiary
@@ -402,36 +402,42 @@ Players.PlayerRemoving:Connect(function()
 end)
 
 
---[[ СИСТЕМА АИМБОТА ]]--
+--[[ СИСТЕМА АИМБОТА ]]---- Переменные
 local roles = {}
 local Murder, Sheriff
 local isCameraLocked = false
+local isSpectating = false
 local lockedRole = nil
 local cameraConnection = nil
+local originalCameraType = Enum.CameraType.Custom
+local originalCameraSubject = nil
 
--- Обновление ролей
+-- Ваши функции
+function IsAlive(player)
+    for name, data in pairs(roles) do
+        if player.Name == name then
+            return not data.Killed and not data.Dead
+        end
+    end
+    return false
+end
+
 local function UpdateRoles()
     local success, result = pcall(function()
         return ReplicatedStorage:FindFirstChild("GetPlayerData", true):InvokeServer()
     end)
-    
     if success then
         roles = result or {}
         Murder, Sheriff = nil, nil
-        
         for name, data in pairs(roles) do
-            if data.Role == "Murderer" then 
-                Murder = name
-            elseif data.Role == 'Sheriff' then 
-                Sheriff = name
-            end
+            if data.Role == "Murderer" then Murder = name
+            elseif data.Role == 'Sheriff' then Sheriff = name end
         end
     end
 end
 
--- Дропдаун выбора роли
-local RoleDropdown = AimbotTab:Dropdown({
-    Title = "Lock to role",
+RoleDropdown = Tabs.AimbotTab:Dropdown({
+    Title = "Target Role",
     Values = {"None", "Sheriff", "Murderer"},
     Value = "None",
     Callback = function(selected)
@@ -439,135 +445,104 @@ local RoleDropdown = AimbotTab:Dropdown({
     end
 })
 
--- Тоггл блокировки камеры
-local cameraToggle = AimbotTab:Toggle({
-    Title = "Enable lock",
+Tabs.AimbotTab:Toggle({
+    Title = "Spectate Mode",
     Default = false,
     Callback = function(state)
-        isCameraLocked = state
-        CurrentCamera.CameraType = state and Enum.CameraType.Scriptable or Enum.CameraType.Custom
+        isSpectating = state
+        if state then
+            originalCameraType = CurrentCamera.CameraType
+            originalCameraSubject = CurrentCamera.CameraSubject
+            CurrentCamera.CameraType = Enum.CameraType.Scriptable
+        else
+            CurrentCamera.CameraType = originalCameraType
+            CurrentCamera.CameraSubject = originalCameraSubject
+        end
     end
 })
 
--- Функция блокировки камеры
-local function lockCameraToPlayer(player)
-    if not (player and player.Character) then return end
-    
-    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-    local head = player.Character:FindFirstChild("Head")
-    
-    if humanoid and head then
-        CurrentCamera.CameraSubject = humanoid
-        CurrentCamera.CFrame = head.CFrame * CFrame.new(0, 0, 5)
-        return true
+Tabs.AimbotTab:Toggle({
+    Title = "Lock Camera",
+    Default = false,
+    Callback = function(state)
+        isCameraLocked = state
+        if not state and not isSpectating then
+            CurrentCamera.CameraType = originalCameraType
+            CurrentCamera.CameraSubject = originalCameraSubject
+        end
     end
-    return false
-end
+})
 
--- Основной цикл
-cameraConnection = RunService.RenderStepped:Connect(function()
-    if not isCameraLocked or not lockedRole then return end
-    
+-- Функции камеры
+local function GetTargetPosition()
+    if not lockedRole then return nil end
     local targetName = lockedRole == "Sheriff" and Sheriff or Murder
-    if not targetName then return end
-    
-    local targetPlayer = Players:FindFirstChild(targetName)
-    if targetPlayer then
-        lockCameraToPlayer(targetPlayer)
-    end
-end)
-
--- Автоматическое обновление ролей
-local function refreshRoles()
-    UpdateRoles()
+    if not targetName then return nil end
+    local player = Players:FindFirstChild(targetName)
+    if not player or not IsAlive(player) then return nil end
+    local character = player.Character
+    if not character then return nil end
+    local head = character:FindFirstChild("Head")
+    return head and head.Position or nil
 end
 
-Players.PlayerAdded:Connect(refreshRoles)
-Players.PlayerRemoved:Connect(refreshRoles)
+local function UpdateSpectate()
+    if not isSpectating or not lockedRole then return end
+    local targetPos = GetTargetPosition()
+    if not targetPos then return end
+    local offset = CFrame.new(0, 2, 8)
+    local targetChar = Players:FindFirstChild(lockedRole == "Sheriff" and Sheriff or Murder).Character
+    if targetChar then
+        local root = targetChar:FindFirstChild("HumanoidRootPart")
+        if root then
+            CurrentCamera.CFrame = root.CFrame * offset
+        end
+    end
+end
 
--- Первоначальная настройка
-UpdateRoles()
+local function UpdateLockCamera()
+    if not isCameraLocked or not lockedRole then return end
+    local targetPos = GetTargetPosition()
+    if not targetPos then return end
+    local currentPos = CurrentCamera.CFrame.Position
+    local newCFrame = CFrame.new(currentPos, targetPos)
+    CurrentCamera.CFrame = CurrentCamera.CFrame:Lerp(newCFrame, 0.25)
+end
 
--- Очистка при отключении
+local function Update()
+    if isSpectating then
+        UpdateSpectate()
+    elseif isCameraLocked then
+        UpdateLockCamera()
+    end
+end
+
+-- Автообновление и инициализация
+local function AutoUpdate()
+    while true do
+        UpdateRoles()
+        task.wait(3)
+    end
+end
+
+coroutine.wrap(AutoUpdate)()
+cameraConnection = RunService.RenderStepped:Connect(Update)
+
 LocalPlayer.AncestryChanged:Connect(function()
-    if not LocalPlayer.Parent and cameraConnection then 
-        cameraConnection:Disconnect() 
+    if not LocalPlayer.Parent and cameraConnection then
+        cameraConnection:Disconnect()
+        CurrentCamera.CameraType = originalCameraType
+        CurrentCamera.CameraSubject = originalCameraSubject
     end
 end)
 
-local function GetGun()
-    for _, v in ipairs(workspace:GetChildren()) do
-        if v.Name == "GunDrop" then
-            LocalPlayer.Character:FindFirstChild("HumanoidRootPart").CFrame = v.CFrame
-            end
-    end
-end
-
-
-
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
-function FindMurderer()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local knife = player.Character:FindFirstChild("Knife") or player.Backpack:FindFirstChild("Knife")
-            if knife then
-                return player
-            end
-        end
-    end
-    return nil
-end
-
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-
--- Находим Убийцу
-function FindMurderer()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local knife = player.Character:FindFirstChild("Knife") or player.Backpack:FindFirstChild("Knife")
-            if knife then
-                return player
-            end
-        end
-    end
-    return nil
-end
-
-local function ShootMurder()
-    local gun = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")
-    if not gun then return end
-
-    local murderer = FindMurderer()
-    if murderer and murderer.Character then
-        local head = murderer.Character:FindFirstChild("Head")
-        if head then
-            local camera = workspace.CurrentCamera
-            camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
-            
-            if gun:FindFirstChildOfClass("Tool") then
-                gun:Activate()
-            else
-                local remote = game.ReplicatedStorage:FindFirstChild("ShootRemote")
-                if remote then
-                    remote:FireServer(head.Position)
-                end
-            end
-        end
-    end
-end
-
-
+UpdateRoles()
 
 Tabs.CombatTab:Section({Title = "Innocent"})
 
 Tabs.CombatTab:Button({
     Title = "Grab Gun",
     Callback = function()
-        GetGun()
     end
 })
 
@@ -590,9 +565,9 @@ Tabs.CombatTab:Section({Title = "Sheriff"})
 Tabs.CombatTab:Button({
     Title = "Shoot Murder",
     Callback = function()
-        ShootMurder()
     end
 })
+
 for _, player in Players:GetPlayers() do
     if player ~= LocalPlayer then
         trackPlayer(player)
