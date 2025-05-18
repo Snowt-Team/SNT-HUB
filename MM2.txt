@@ -59,7 +59,7 @@ WindUI:Notify({
 
 -- Window
 local Window = WindUI:CreateWindow({
-    Title = gradient("SNT&MirrozzScript [Alpha]", Color3.fromHex("#001e80"), Color3.fromHex("#16f2d9")),
+    Title = gradient("SNT&MirrozzScript [Beta]", Color3.fromHex("#001e80"), Color3.fromHex("#16f2d9")),
     Icon = "infinity",
     Author = gradient("Murder Mystery 2", Color3.fromHex("#1bf2b2"), Color3.fromHex("#1bcbf2")),
     Folder = "WindUI",
@@ -125,6 +125,7 @@ local function updateCharacter()
         end
     end
 end
+Tabs.CharacterTab:Section({Title = gradient("Walkspeed", Color3.fromHex("#ff0000"), Color3.fromHex("#300000"))})
 
 Tabs.CharacterTab:Slider({
     Title = "Walkspeed",
@@ -151,6 +152,8 @@ Tabs.CharacterTab:Toggle({
         updateCharacter()
     end
 })
+
+Tabs.EspTab:Section({Title = gradient("JumpPower", Color3.fromHex("#001aff"), Color3.fromHex("#020524"))})
 
 Tabs.CharacterTab:Slider({
     Title = "Jumppower",
@@ -377,6 +380,8 @@ Tabs.TeleportTab:Button({
     end
 })
 
+Tabs.TeleportTab:Section({Title = gradient("Special TP", Color3.fromHex("#b914fa"), Color3.fromHex("#7023c2"))})
+
 Tabs.TeleportTab:Button({
     Title = "Teleport to Sheriff",
     Callback = function()
@@ -494,6 +499,8 @@ local function UpdateRoles()
     end
 end
 
+Tabs.AimbotTab:Section({Title = gradient("Default AimBot", Color3.fromHex("#00448c"), Color3.fromHex("#0affd6"))})
+
 RoleDropdown = Tabs.AimbotTab:Dropdown({
     Title = "Target Role",
     Values = {"None", "Sheriff", "Murderer"},
@@ -593,134 +600,166 @@ end)
 
 UpdateRoles()
 
-Tabs.AimbotTab:Section({Title = gradient("Silent Aimbot", Color3.fromHex("#ff0000"), Color3.fromHex("#ff8800"))})
+Tabs.AimbotTab:Section({Title = gradient("Silent Aimbot", Color3.fromHex("#ff0000"), Color3.fromHex("#ff8800"))
+})
 
-local SilentAimbot = {
-    Enabled = false,
-    Target = "Murderer",
+local SilentAim = {
+    Enabled = true,
+    Target = "Murderer", -- "Murderer" или "Sheriff"
     Prediction = 0.14,
-    FOV = 150,
-    Visualize = true
+    HitChance = 100,
+    UseGunEvent = true -- Использовать GunKill вместо HitPart
 }
 
--- Элементы UI
-Tabs.AimbotTab:Dropdown({
-    Title = "Target Role",
-    Values = {"Murderer", "Sheriff"},
-    Value = "Murderer",
-    Callback = function(selected)
-        SilentAimbot.Target = selected
-    end
-})
-
-Tabs.AimbotTab:Toggle({
-    Title = "Enable Silent Aimbot",
-    Default = false,
-    Callback = function(state)
-        SilentAimbot.Enabled = state
-    end
-})
-
-Tabs.AimbotTab:Slider({
-    Title = "Prediction",
-    Step = 0.01,
-    Value = {Min = 0, Max = 0.5, Default = 0.14},
-    Callback = function(value)
-        SilentAimbot.Prediction = value
-    end
-})
-
-Tabs.AimbotTab:Slider({
-    Title = "FOV Size",
-    Step = 10,
-    Value = {Min = 20, Max = 1000, Default = 150},
-    Callback = function(value)
-        SilentAimbot.FOV = value
-    end
-})
-
-Tabs.AimbotTab:Toggle({
-    Title = "Show FOV",
-    Default = true,
-    Callback = function(state)
-        SilentAimbot.Visualize = state
-    end
-})
-
--- Визуализация FOV
-local fovCircle = Drawing.new("Circle")
-fovCircle.Visible = false
-fovCircle.Color = Color3.fromRGB(255, 50, 50)
-fovCircle.Thickness = 1
-fovCircle.Transparency = 0.7
-fovCircle.Filled = false
-fovCircle.NumSides = 64
-
--- Получение цели
-local function GetTarget()
-    if not SilentAimbot.Enabled then return nil end
+-- Перехватываем ВСЕ выстрелы (работает даже без прицеливания)
+local function FireSilentBullet()
+    if not SilentAim.Enabled or math.random(1, 100) > SilentAim.HitChance then return end
     
     UpdateRoles()
-    local targetName = SilentAimbot.Target == "Sheriff" and Sheriff or Murder
-    if not targetName then return nil end
+    local targetName = SilentAim.Target == "Sheriff" and Sheriff or Murder
+    if not targetName then return end
     
-    local targetPlayer = Players:FindFirstChild(targetName)
-    if not targetPlayer or not targetPlayer.Character then return nil end
-    
-    local humanoid = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if not humanoid or humanoid.Health <= 0 then return nil end
-    
-    return targetPlayer
+    local target = game:GetService("Players"):FindFirstChild(targetName)
+    if not target or not target.Character then return end
+
+    local targetPart = target.Character:FindFirstChild("Head") or target.Character:FindFirstChild("HumanoidRootPart")
+    if not targetPart then return end
+
+    -- Предсказание позиции
+    local root = target.Character:FindFirstChild("HumanoidRootPart")
+    local predictedPos = root and (root.Position + (root.Velocity * SilentAim.Prediction)) or targetPart.Position
+
+    -- Вариант 1: Через GunKill (для шерифа)
+    if SilentAim.UseGunEvent then
+        game:GetService("ReplicatedStorage").Remotes.Gameplay.GunKill:FireServer(
+            predictedPos,
+            targetPart
+        )
+    -- Вариант 2: Через общий KillEvent
+    else
+        game:GetService("ReplicatedStorage").Remotes.Gameplay.KillEvent:FireServer(
+            predictedPos,
+            targetPart
+        )
+    end
 end
 
--- Хук выстрелов
+-- Хук для выстрелов из пистолета
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    if not SilentAimbot.Enabled or getnamecallmethod() ~= "InvokeServer" or tostring(self) ~= "HitPart" then
+    if not SilentAim.Enabled or getnamecallmethod() ~= "InvokeServer" or tostring(self) ~= "HitPart" then
         return oldNamecall(self, ...)
     end
-    
-    local target = GetTarget()
-    if not target then return oldNamecall(self, ...) end
-    
-    local args = {...}
-    local rootPart = target.Character:FindFirstChild("HumanoidRootPart")
-    local head = target.Character:FindFirstChild("Head")
-    
-    if not rootPart or not head then return oldNamecall(self, ...) end
-    
-    -- Проверка FOV
-    local screenPoint = CurrentCamera:WorldToViewportPoint(head.Position)
-    if screenPoint.Z < 0 then return oldNamecall(self, ...) end -- Если цель за камерой
-    
-    local mousePos = game:GetService("UserInputService"):GetMouseLocation()
-    local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
-    
-    if distance > SilentAimbot.FOV then return oldNamecall(self, ...) end
-    
-    -- Предсказание позиции
-    local predictedPos = rootPart.Position + (rootPart.Velocity * SilentAimbot.Prediction)
-    
-    -- Модификация аргументов выстрела
-    args[1] = predictedPos
-    args[2] = predictedPos
-    args[3] = head
-    
-    return oldNamecall(self, unpack(args))
+    FireSilentBullet()
+    return nil -- Блокируем оригинальный выстрел
 end)
 
--- Обновление FOV
-game:GetService("RunService").RenderStepped:Connect(function()
-    fovCircle.Visible = SilentAimbot.Enabled and SilentAimbot.Visualize
-    if SilentAimbot.Enabled and SilentAimbot.Visualize then
-        local mousePos = game:GetService("UserInputService"):GetMouseLocation()
-        fovCircle.Position = mousePos
-        fovCircle.Radius = SilentAimbot.FOV
+-- Авто-выстрел при нажатии на ЛКМ (дополнительная страховка)
+local UIS = game:GetService("UserInputService")
+UIS.InputBegan:Connect(function(input)
+    if SilentAim.Enabled and input.UserInputType == Enum.UserInputType.MouseButton1 then
+        FireSilentBullet()
     end
 end)
 
+-- Элементы UI
+
+Tabs.AimbotTab:Toggle({
+    Title = "Silent Aim",
+    Default = true,
+    Callback = function(state)
+        SilentAim.Enabled = state
+    end
+})
+
+Tabs.AimbotTab:Dropdown({
+    Title = "Target",
+    Values = {"Murderer", "Sheriff"},
+    Value = "Murderer",
+    Callback = function(val)
+        SilentAim.Target = val
+    end
+})
+
+Tabs.AimbotTab:Slider({
+    Title = "Hit Chance %",
+    Step = 1,
+    Value = {Min = 0, Max = 100, Default = 100},
+    Callback = function(val)
+        SilentAim.HitChance = val
+    end
+})
+
+Tabs.AimbotTab:Toggle({
+    Title = "Use GunKill Event",
+    Default = true,
+    Callback = function(state)
+        SilentAim.UseGunEvent = state
+    end
+})
+
 -- Combat
-Tabs.CombatTab:Section({Title = "Innocent"})
+local function HasGun()
+    local backpack = game:GetService("Players").LocalPlayer.Backpack
+    for _, item in ipairs(backpack:GetChildren()) do
+        if item:FindFirstChild("IsGun") then
+            return true
+        end
+    end
+    return false
+end
+
+local function ShootMurderer()
+    UpdateRoles()
+    if not Murder then return end
+    
+    local murderer = game.Players:FindFirstChild(Murder)
+    if murderer and murderer.Character then
+        game:GetService("ReplicatedStorage").Remotes.Gameplay.GunKill:FireServer(
+            murderer.Character.HumanoidRootPart.Position,
+            murderer.Character.Head
+        )
+    end
+end
+
+local function KnifeKillNearest()
+    local nearestPlayer, minDist = nil, math.huge
+    for _, player in ipairs(game.Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local dist = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+            if dist < minDist then
+                nearestPlayer = player
+                minDist = dist
+            end
+        end
+    end
+    
+    if nearestPlayer then
+        game:GetService("ReplicatedStorage").Remotes.Gameplay.KnifeKill:FireServer(
+            nearestPlayer.Character.HumanoidRootPart.Position
+        )
+    end
+end
+
+local function EquipWeapon()
+    local role = roles[game.Players.LocalPlayer.Name].Role
+    local weaponType = (role == "Sheriff") and "Gun" or "Knife"
+    
+    game:GetService("ReplicatedStorage").Remotes.Inventory.Equip:FireServer(weaponType)
+end
+
+Tabs.CombatTab:Section({
+    Title = gradient("For all roles", Color3.fromHex("#ffff00"), Color3.fromHex("#4f4f00")), 
+})
+
+Tabs.CombatTab:Button({
+    Title = "Auto-Equip Weapon",
+    Callback = EquipWeapon
+})
+
+Tabs.CombatTab:Section({
+    Title = gradient("Innocent", Color3.fromHex("#0ff707"), Color3.fromHex("#1e690c")), 
+})
 
 Tabs.CombatTab:Button({
     Title = "Grab Gun",
@@ -728,7 +767,14 @@ Tabs.CombatTab:Button({
     end
 })
 
-Tabs.CombatTab:Section({Title = "Murder"})
+Tabs.CombatTab:Section({
+    Title = gradient("Murder", Color3.fromHex("#e80909"), Color3.fromHex("#630404")), 
+})
+
+Tabs.CombatTab:Button({
+    Title = "Knife Kill Nearest (Murderer)",
+    Callback = KnifeKillNearest
+})
 
 Tabs.CombatTab:Button({
     Title = "Kill All",
@@ -742,12 +788,13 @@ Tabs.CombatTab:Button({
     end
 })
 
-Tabs.CombatTab:Section({Title = "Sheriff"})
+Tabs.CombatTab:Section({
+    Title = gradient("Sheriff", Color3.fromHex("#001e80"), Color3.fromHex("#16f2d9")), 
+})
 
 Tabs.CombatTab:Button({
-    Title = "Shoot Murder",
-    Callback = function()
-    end
+    Title = "Shoot Murderer",
+    Callback = ShootMurderer
 })
 
 -- Settings
@@ -835,12 +882,8 @@ local function ToggleAntiAFK(state)
         end
 end
 
-Tabs.SettingsTab:Toggle({
-    Title = "NoClip",
-    Callback = function(state)
-        Settings.Noclip.Enabled = state
-        ToggleNoclip(state)
-    end
+Tabs.SettingsTab:Section({
+    Title = gradient("Hitboxes", Color3.fromHex("#ff0000"), Color3.fromHex("#ff8800"))
 })
 
 Tabs.SettingsTab:Toggle({
@@ -876,6 +919,11 @@ Tabs.SettingsTab:Colorpicker({
     end
 })
 
+Tabs.SettingsTab:Section({
+    Title = gradient("Character Functions", Color3.fromHex("#00eaff"), Color3.fromHex("#002a2e"))
+})
+
+
 Tabs.SettingsTab:Toggle({
     Title = "Anti-AFK",
     Callback = function(state)
@@ -884,43 +932,137 @@ Tabs.SettingsTab:Toggle({
     end
 })
 
+Tabs.SettingsTab:Toggle({
+    Title = "NoClip",
+    Callback = function(state)
+        Settings.Noclip.Enabled = state
+        ToggleNoclip(state)
+    end
+})
+
+-- Auto Exec
+
+Tabs.SettingsTab:Section({
+    Title = gradient("Auto Execute", Color3.fromHex("#00ff40"), Color3.fromHex("#88f2a2"))
+})
+
+local AutoInject = {
+    Enabled = false,
+    ScriptURL = "https://raw.githubusercontent.com/Snowt-Team/SNT-HUB/refs/heads/main/MM2.txt"
+}
+
+Tabs.SettingsTab:Toggle({
+    Title = "Auto Inject on Rejoin/Hop",
+    Default = false,
+    Callback = function(state)
+        AutoInject.Enabled = state
+        if state then
+            SetupAutoInject()
+            WindUI:Notify({
+                Title = "Auto Inject",
+                Content = "Автоинжект включен! Скрипт перезапустится автоматически.",
+                Duration = 3
+            })
+        else
+            WindUI:Notify({
+                Title = "Auto Inject",
+                Content = "Автоинжект отключен",
+                Duration = 3
+            })
+        end
+    end
+})
+
+local function SetupAutoInject()
+    if not AutoInject.Enabled then return end
+    
+    local TeleportService = game:GetService("TeleportService")
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
+    spawn(function()
+        wait(2)
+        if AutoInject.Enabled then
+            pcall(function()
+                loadstring(game:HttpGet(AutoInject.ScriptURL))()
+            end)
+        end
+    end)
+
+    LocalPlayer.OnTeleport:Connect(function(state)
+        if state == Enum.TeleportState.Started and AutoInject.Enabled then
+            queue_on_teleport([[
+                wait(2)
+                loadstring(game:HttpGet("]]..AutoInject.ScriptURL..[["))()
+            ]])
+        end
+    end)
+
+    game:GetService("Players").PlayerRemoving:Connect(function(player)
+        if player == LocalPlayer and AutoInject.Enabled then
+            queue_on_teleport([[
+                wait(2)
+                loadstring(game:HttpGet("]]..AutoInject.ScriptURL..[["))()
+            ]])
+        end
+    end)
+end
+
+Tabs.SettingsTab:Button({
+    Title = "Manual Re-Inject",
+    Callback = function()
+        pcall(function()
+            loadstring(game:HttpGet(AutoInject.ScriptURL))()
+            WindUI:Notify({
+                Title = "Manual Inject",
+                Content = "Скрипт успешно перезагружен!",
+                Duration = 3
+            })
+        end)
+    end
+})
+
 -- Socials
 Tabs.SocialsTab:Paragraph({
-    Title = "SnowT",
-    Desc = "Join to my socials for know more information!",
-    Image = "snowflake",
-    Color = "Blue"
-})
-
-Tabs.SocialsTab:Button({
-    Title = "SnowT Channel",
-    Callback = function()
-        SetClipboard("t.me/supreme_scripts")
-    end
+    Title = gradient("SnowT", Color3.fromHex("#001e80"), Color3.fromHex("#16f2d9")),
+    Desc = "My socials",
+    Image = "",
+    Color = "Grey",
+    Buttons = {
+        { Icon = "circle",
+          Title = "TG Channel",
+          Callback = function()
+              SetClipboard("t.me/supreme_scripts") end,
+        }
+    }
 })
 
 Tabs.SocialsTab:Paragraph({
-    Title = "Mirrozz",
-    Desc = "Join to socials my friend for get more scripts!",
-    Image = "eye",
-    Color = "Green"
-})
-
-Tabs.SocialsTab:Button({
-    Title = "Mirrozz Channel",
-    Callback = function()
-        SetClipboard("t.me/mirrozzscript")
-    end
+    Title = gradient("Mirrozz", Color3.fromHex("#ffffff"), Color3.fromHex("#363636")),
+    Desc = "Socials My Friend",
+    Image = "",
+    Color = "Grey",
+    Buttons = {
+        {
+            Title = "TG Channel",
+            Icon = "circle",
+            Callback = function() SetClipboard("t.me/mirrozzscript")
+    end,
+        }
+    }
 })
 
 -- Changelogs
 Tabs.ChangelogsTab:Code({
     Title = "Changelogs:",
     Code = [[
-    Early release [Alpha]:
+    Early release [Beta]:
     • Script has been released
     • Shoot murder function
-    • Grab gun function
+    • Silent aimbot
+    • Special aimbot
+    • Kill neariest player
+    • TP to murder/sheriff function
     • Esp all: murderer, sheriff, innocent
    More functions will be added in future!
 ]]
@@ -930,8 +1072,11 @@ Tabs.ChangelogsTab:Code({
     Title = "Next update:",
     Code = [[ The next update is Alpha [0.1.1]
     In future we will be add:
-    • New autofarm function
-    • New Kill all function
+    • Autofarm coins function
+    • Autofarm coins variables
+    • Kill all function
+    • TP to Lobby
+    • Kill sheriff function
     • Fix bugs
    The date of update: 17.05.2025!
 ]]
@@ -952,6 +1097,10 @@ Tabs.ServerTab:Button({
             warn("Rejoin error:", error)
         end
     end
+})
+
+Tabs.ServerTab:Section({
+    Title = ""
 })
 
 Tabs.ServerTab:Button({
