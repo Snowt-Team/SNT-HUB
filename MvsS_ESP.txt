@@ -1,0 +1,130 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
+
+local espSettings = {
+    MaxDistance = 250,
+    HighlightColor = Color3.fromRGB(255, 0, 0),
+    NameColor = Color3.fromRGB(255, 255, 255),
+    ShowNames = true,
+    ShowDistance = true
+}
+
+local espElements = {}
+
+local function isPlayerAlive(player)
+    local character = player.Character
+    if not character then return false end
+    local humanoid = character:FindFirstChild("Humanoid")
+    return humanoid and humanoid.Health > 0
+end
+
+local function getPlayerDistance(player)
+    if not player.Character or not LocalPlayer.Character then return math.huge end
+    local targetRoot = player.Character:FindFirstChild("HumanoidRootPart")
+    local localRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not targetRoot or not localRoot then return math.huge end
+    return (targetRoot.Position - localRoot.Position).Magnitude
+end
+
+
+local function createEsp(player)
+    if player == LocalPlayer or not isPlayerAlive(player) then
+        if espElements[player] then
+            espElements[player].Highlight:Destroy()
+            if espElements[player].Billboard then
+                espElements[player].Billboard:Destroy()
+            end
+            espElements[player] = nil
+        end
+        return
+    end
+
+    local distance = getPlayerDistance(player)
+    if distance > espSettings.MaxDistance then
+        if espElements[player] then
+            espElements[player].Highlight:Destroy()
+            if espElements[player].Billboard then
+                espElements[player].Billboard:Destroy()
+            end
+            espElements[player] = nil
+        end
+        return
+    end
+
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+    if not espElements[player] then
+        espElements[player] = {}
+
+
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = character
+        highlight.FillColor = espSettings.HighlightColor
+        highlight.FillTransparency = 0.5
+        highlight.OutlineColor = espSettings.HighlightColor
+        highlight.OutlineTransparency = 0
+        highlight.Parent = CoreGui
+        espElements[player].Highlight = highlight
+
+        if espSettings.ShowNames or espSettings.ShowDistance then
+            local billboard = Instance.new("BillboardGui")
+            billboard.Adornee = character:FindFirstChild("HumanoidRootPart")
+            billboard.Size = UDim2.new(0, 200, 0, 50)
+            billboard.StudsOffset = Vector3.new(0, 3, 0)
+            billboard.AlwaysOnTop = true
+            billboard.Parent = CoreGui
+            espElements[player].Billboard = billboard
+
+            if espSettings.ShowNames then
+                local nameLabel = Instance.new("TextLabel")
+                nameLabel.Size = UDim2.new(1, 0, 0, 25)
+                nameLabel.Position = UDim2.new(0, 0, 0, 0)
+                nameLabel.BackgroundTransparency = 1
+                nameLabel.Text = player.Name
+                nameLabel.TextColor3 = espSettings.NameColor
+                nameLabel.TextSize = 15
+                nameLabel.Font = Enum.Font.SourceSansBold
+                nameLabel.TextStrokeTransparency = 0.5
+                nameLabel.Parent = billboard
+            end
+
+            if espSettings.ShowDistance then
+                local offset = espSettings.ShowNames and 25 or 0
+                local distanceLabel = Instance.new("TextLabel")
+                distanceLabel.Size = UDim2.new(1, 0, 0, 25)
+                distanceLabel.Position = UDim2.new(0, 0, 0, offset)
+                distanceLabel.BackgroundTransparency = 1
+                distanceLabel.Text = ""
+                distanceLabel.TextColor3 = espSettings.NameColor
+                distanceLabel.TextSize = 15
+                distanceLabel.Font = Enum.Font.SourceSansBold
+                distanceLabel.TextStrokeTransparency = 0.5
+                distanceLabel.Parent = billboard
+                espElements[player].DistanceLabel = distanceLabel
+            end
+        end
+    end
+
+    if espElements[player] and espElements[player].DistanceLabel then
+        espElements[player].DistanceLabel.Text = math.floor(distance) .. " studs"
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    for _, player in pairs(Players:GetPlayers()) do
+        createEsp(player)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if espElements[player] then
+        espElements[player].Highlight:Destroy()
+        if espElements[player].Billboard then
+            espElements[player].Billboard:Destroy()
+        end
+        espElements[player] = nil
+    end
+end)
